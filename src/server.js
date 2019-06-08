@@ -1,13 +1,12 @@
-import fs from 'fs';
 import express from 'express';
-import url from 'url';
 import cors from 'cors';
-import request from 'request';
 import bodyParser from 'body-parser';
 import morgan from 'morgan';
-import URLStrategy from './authentication/url';
+import mongodb from 'mongodb';
 import loglevels from './lib/loglevels';
 import { asyncMiddleware } from './lib/resourcelib';
+import eventRoutes from './routes/event';
+import userRoutes from './routes/user';
 
 const TYPE_OBJECT = typeof ({});
 const TYPE_FUNCTION = typeof (() => 0);
@@ -54,34 +53,17 @@ function configToString(obj, skip = [], indent = 0) {
 
 /* eslint-disable comma-dangle */
 export default function startServer({
-  config, database, logger, audioSource
+  config, logger,
 }) {
   logger.info(`Running server in ${config.env} environment from ${process.cwd()}`);
-  logger.info(`Database: ${config.database.dialect}, ${config.database.database}@${config.database.host}`);
-  logger.info(`Using ${audioSource.name} as audio source with root ${audioSource.root}`);
+  logger.info(`Database: ${config.database.mongodbUrl}`);
   logger.debug(`Config is: \n${configToString(config, ['password', 'instance', 'format'])}`);
 
-  const DEBUG_LOG = msg => logger.debug(msg);
+  // const DEBUG_LOG = msg => logger.debug(msg);
 
-  // Remap the logging function to use our logger instead
-  if (config.database.logging) {
-    database.options.logging = console.log; // eslint-disable-line no-console, no-param-reassign
-  }
   const { port } = config.server;
-  const { Audit } = audit(database);
 
-  // Make sure the audit table exists
-  Audit.sync();
-
-  // Turn on cleanup, if requested
-  if (config.cleanup.interval) {
-    const audioCleanup = cleanup({
-      config, database, logger, audioSource
-    });
-    logger.debug(`Running cleanup with interval ${config.cleanup.interval} milliseconds`);
-    setInterval(audioCleanup, config.cleanup.interval);
-  }
-
+  /*
   let publicKey;
   if (config.authentication.publicKeyBase64 !== undefined &&
       config.authentication.publicKeyFile !== undefined) {
@@ -93,22 +75,15 @@ export default function startServer({
   } else {
     throw new Error('Neither OAUTH_PUBLIC_KEY_BASE64 or OAUTH_PUBLIC_KEY_FILE are defined!');
   }
-
-  passport.use(new URLStrategy({ logger: DEBUG_LOG }));
+  */
 
   // Typically serialize user ID and look it up when deserializing
   // Not used now, since we're not using sessions
-  passport.serializeUser((user, done) => done(null, JSON.stringify(user)));
-  passport.deserializeUser((user, done) => done(null, JSON.parse(user)));
+  //  passport.serializeUser((user, done) => done(null, JSON.stringify(user)));
+  //  passport.deserializeUser((user, done) => done(null, JSON.parse(user)));
 
   // Initialize web app
   const app = express();
-
-  // Register extension .opus
-  express.static.mime.define({ 'audio/ogg;codec=opus': ['opus'] });
-
-  // Turn off etag support
-  app.set('etag', false);
 
   if (config.env !== 'test') {
     // Don't log during testing
@@ -146,7 +121,7 @@ export default function startServer({
   // Parse url encoded body
   app.use(bodyParser.urlencoded({ extended: true }));
 
-  app.use(passport.initialize());
+  // app.use(passport.initialize());
 
   // Set up routes
   app.options('*', cors());
@@ -159,17 +134,9 @@ export default function startServer({
 
   // Ping route, will just check DB access, and return success, else fail.
   // Doesn't require authentication
-  app.get('/rest/status', asyncMiddleware((req, res) =>
-    Audit.count()
-      .then(() => res.status(204).send())
-      .catch(() => res.status(500).send('No database?'))));
+  app.get('/status', asyncMiddleware((req, res) => res.status(204).send()));
 
-  app.get('/rest/audio/support', (req, res) => {
-    res.format({
-      json: () => res.json(supportedAudio()),
-    });
-  });
-
+  /*
   // Routes inside this router requires authentication
   const protectedRouter = express.Router();
 
@@ -235,6 +202,7 @@ export default function startServer({
       query: req.query
     }));
   });
+  */
 
   // Return errors if the exception has a status field
   app.use((err, req, res, next) => {
@@ -248,7 +216,18 @@ export default function startServer({
 
   // Start listening to requests
   if (config.env !== 'test') {
-    app.listen(port, () => logger.info(`recorder RESTful API server started on: ${port}`));
+    mongodb.MongoClient.connect(config.database.mongodbUrl, (err, client) => {
+      if (err) {
+        console.log(`Failed to connect to mongo DB: ${err}`);
+        return;
+      }
+
+      const db = client.db(config.database.db);
+      eventRoutes(app, db);
+      userRoutes(app, db, logger);
+
+      app.listen(port, () => logger.info(`server started on: ${port}`));
+    });
   }
 
   return app;
