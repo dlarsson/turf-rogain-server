@@ -3,7 +3,7 @@
   "longname": "PaltN Turf server",
   "version": "1.0.0",
   "description": "PaltN's test turf server",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "npm run build",
     "test-nobuild": "mocha --exit --timeout 10000 dist/test/*spec.js",
