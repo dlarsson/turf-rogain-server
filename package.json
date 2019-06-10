@@ -10,7 +10,7 @@
     "eslint": "eslint src",
     "html": "marked -o README.html README.md",
     "build": "npm run eslint && npm run build-nolint && npm run test-nobuild",
-    "build-nolint": "npm run html && rimraf dist/ && babel ./src --out-dir dist/src --copy-files && babel ./test --out-dir dist/test --copy-files",
+    "build-nolint": "rimraf dist/ && babel ./src --out-dir dist/src --copy-files && babel ./test --out-dir dist/test --copy-files",
     "start": "npm run build-nolint && NODE_ENV=development node server.js",
     "debug": "npm run build-nolint && NODE_ENV=development node --inspect server.js",
     "debug-brk": "npm run build-nolint && NODE_ENV=development node --inspect-brk server.js"
