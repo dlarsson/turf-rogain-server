@@ -1,9 +1,13 @@
-export default class Event {
-  constructor(name, start, end, lat, lng) {
-    this.name = name;
-    this.start = start;
-    this.end = end;
-    this.lat = lat;
-    this.lng = lng;
-  }
-}
+import mongoose from 'mongoose';
+import { pointSchema, polygonSchema } from '../schemas/geojson';
+
+const EventSchema = new mongoose.Schema({
+  id: Number,
+  name: String,
+  start: Date,
+  end: Date,
+  location: pointSchema,
+  polygon: polygonSchema,
+});
+
+export default mongoose.model('Event', EventSchema);

@@ -2,9 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import morgan from 'morgan';
-import mongodb from 'mongodb';
+import mongoose from 'mongoose';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import loglevels from './lib/loglevels';
 import { asyncMiddleware } from './lib/resourcelib';
+import Event from './models/event';
 import eventRoutes from './routes/event';
 import userRoutes from './routes/user';
 
@@ -62,6 +65,8 @@ export default function startServer({
   // const DEBUG_LOG = msg => logger.debug(msg);
 
   const { port } = config.server;
+
+  mongoose.connect(config.database.mongodbUrl, { useNewUrlParser: true });
 
   /*
   let publicKey;
@@ -121,7 +126,22 @@ export default function startServer({
   // Parse url encoded body
   app.use(bodyParser.urlencoded({ extended: true }));
 
-  // app.use(passport.initialize());
+  app.use(passport.initialize());
+
+  const GOOGLE_CLIENT_ID = '551424717997-9f3aonmvs6r4f9i2jr5bke52i3vh3kdf.apps.googleusercontent.com';
+  const GOOGLE_CLIENT_SECRET = 'sekkrit';
+
+  passport.use(new GoogleStrategy(
+    {
+      clientID: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      callbackURL: 'http://www.example.com/auth/google/callback',
+    },
+    (accessToken, refreshToken, profile, cb) => {
+      // User.findOrCreate({ googleId: profile.id }, (err, user) => cb(err, user));
+      cb(null, {});
+    }
+  ));
 
   // Set up routes
   app.options('*', cors());
@@ -135,6 +155,8 @@ export default function startServer({
   // Ping route, will just check DB access, and return success, else fail.
   // Doesn't require authentication
   app.get('/status', asyncMiddleware((req, res) => res.status(204).send()));
+
+  app.get('/events', asyncMiddleware((req, res) => Event.find({}).exec().then(qr => res.json(qr))));
 
   /*
   // Routes inside this router requires authentication
@@ -215,19 +237,11 @@ export default function startServer({
   });
 
   // Start listening to requests
+  eventRoutes(app);
+  userRoutes(app, logger);
+
   if (config.env !== 'test') {
-    mongodb.MongoClient.connect(config.database.mongodbUrl, (err, client) => {
-      if (err) {
-        console.log(`Failed to connect to mongo DB: ${err}`);
-        return;
-      }
-
-      const db = client.db(config.database.db);
-      eventRoutes(app, db);
-      userRoutes(app, db, logger);
-
-      app.listen(port, () => logger.info(`server started on: ${port}`));
-    });
+    app.listen(port, () => logger.info(`server started on: ${port}`));
   }
 
   return app;

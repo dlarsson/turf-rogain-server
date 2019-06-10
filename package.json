@@ -5,11 +5,11 @@
   "description": "PaltN's test turf server",
   "main": "index.js",
   "scripts": {
-    "test": "",
+    "test": "npm run build",
     "test-nobuild": "mocha --exit --timeout 10000 dist/test/*spec.js",
     "eslint": "eslint src",
     "html": "marked -o README.html README.md",
-    "build": "npm run eslint && npm run build-nolint",
+    "build": "npm run eslint && npm run build-nolint && npm run test-nobuild",
     "build-nolint": "npm run html && rimraf dist/ && babel ./src --out-dir dist/src --copy-files && babel ./test --out-dir dist/test --copy-files",
     "start": "npm run build-nolint && NODE_ENV=development node server.js",
     "debug": "npm run build-nolint && NODE_ENV=development node --inspect server.js",
@@ -34,6 +34,7 @@
     "dotenv": "^6.2.0",
     "express": "^4.16.3",
     "mongodb": "^3.2.5",
+    "mongoose": "^5.5.14",
     "morgan": "^1.9.1",
     "node-fetch": "^2.6.0",
     "ol": "^5.3.3",
@@ -57,6 +58,7 @@
     "eslint-plugin-react": "^7.7.0",
     "marked": "^0.6.2",
     "mocha": "^5.0.5",
+    "mongodb-memory-server": "^5.1.3",
     "pack-zip": "^0.2.2",
     "rimraf": "^2.6.2"
   }
