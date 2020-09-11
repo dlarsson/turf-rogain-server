@@ -36,7 +36,7 @@
     "mongodb": "^3.2.5",
     "mongoose": "^5.5.14",
     "morgan": "^1.9.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "ol": "^5.3.3",
     "passport": "^0.4.0",
     "passport-google-oauth20": "^2.0.0",
